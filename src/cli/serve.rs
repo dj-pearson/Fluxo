@@ -3,6 +3,7 @@ use clap::Parser;
 use colored::Colorize;
 use log::{debug, info};
 use std::{path::PathBuf, process, sync::Arc, thread};
+use tokio;
 
 use crate::{
 	argon_error, argon_info, argon_warn,
@@ -12,7 +13,7 @@ use crate::{
 	integration,
 	program::{Program, ProgramName},
 	project::{self, Project},
-	server::{self, Server},
+	server::{self, Server, http::HttpServer},
 	sessions,
 };
 
@@ -172,6 +173,29 @@ impl Serve {
 			project_path.to_string().bold()
 		);
 
+		// Start Fluxo HTTP server on a different port for Studio communication
+		let fluxo_port = port + 1000; // e.g., if Argon is on 8080, Fluxo is on 9080
+		let project_for_server = Project::load(&project_path)?;
+		
+		argon_info!(
+			"Starting Fluxo HTTP server on: {}",
+			server::format_address(&host, fluxo_port).bold()
+		);
+		
+		// Start Fluxo HTTP server in a separate thread
+		let fluxo_host = host.clone();
+		thread::spawn(move || {
+			let rt = tokio::runtime::Runtime::new().unwrap();
+			rt.block_on(async {
+				let http_server = HttpServer::new(fluxo_port);
+				http_server.set_project(project_for_server).await;
+				if let Err(e) = http_server.start().await {
+					argon_error!("Fluxo HTTP server error: {}", e);
+				}
+			});
+		});
+
+		// Start the original Argon server
 		server.start()?;
 
 		Ok(())

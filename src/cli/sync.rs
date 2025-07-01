@@ -2,6 +2,8 @@ use anyhow::Result;
 use clap::Parser;
 use std::path::PathBuf;
 use colored::Colorize;
+use serde_json;
+use walkdir;
 
 use crate::{
     config::Config,
@@ -73,19 +75,27 @@ impl Sync {
     }
     
     fn check_studio_connection(&self) -> Result<bool> {
-        // Try to connect to Studio plugin via HTTP/RPC
-        // This would check if the companion plugin is running
-        
-        // For now, we'll simulate this check
-        // In a real implementation, this would ping the Studio plugin
+        // Try to connect to Studio plugin via HTTP
         println!("{}", "🔍 Checking Studio connection...".cyan());
         
-        // Simulate connection check - in real implementation would use HTTP client
-        // let client = reqwest::blocking::Client::new();
-        // let url = format!("http://localhost:{}/health", self.port);
+        let url = format!("http://localhost:{}/health", self.port + 1000); // Fluxo HTTP port
         
-        // For development, we'll assume connection is available
-        Ok(true)
+        // Use blocking reqwest for simplicity in CLI
+        match reqwest::blocking::get(&url) {
+            Ok(response) => {
+                if response.status().is_success() {
+                    println!("{}", "✅ Studio plugin connection verified".green());
+                    Ok(true)
+                } else {
+                    println!("{}", "❌ Studio plugin not responding".red());
+                    Ok(false)
+                }
+            },
+            Err(_) => {
+                println!("{}", "❌ Cannot reach Studio plugin".red());
+                Ok(false)
+            }
+        }
     }
     
     fn sync_files(&self, project_path: &std::path::Path) -> Result<()> {
@@ -115,14 +125,50 @@ impl Sync {
             serde_json::json!({})
         };
         
-        // In a real implementation, this would send to Studio via HTTP/RPC
-        // For now, we'll just log what we would sync
-        println!("{} Would sync {} files to Studio", "✅".green(), files.len());
+        // Prepare sync data
+        let sync_data = serde_json::json!({
+            "files": files,
+            "metadata": metadata,
+            "projectPath": project_path.to_string_lossy()
+        });
         
-        if !files.is_empty() {
-            println!("  Files to sync:");
-            for file_path in files.keys() {
-                println!("    {} {}", "•".cyan(), file_path);
+        // Send to Studio plugin
+        let client = reqwest::blocking::Client::new();
+        let url = format!("http://localhost:{}/sync", self.port + 1000);
+        
+        println!("{}", "📡 Sending sync request to Studio...".cyan());
+        
+        match client.post(&url)
+            .json(&sync_data)
+            .send() 
+        {
+            Ok(response) => {
+                if response.status().is_success() {
+                    if let Ok(result) = response.json::<serde_json::Value>() {
+                        if result["success"].as_bool().unwrap_or(false) {
+                            println!("{} Sync completed successfully!", "✅".green());
+                            
+                            // Log file details
+                            if !files.is_empty() {
+                                println!("  Synced files:");
+                                for filename in files.keys() {
+                                    println!("    {} {}", "📄".blue(), filename);
+                                }
+                            }
+                        } else {
+                            let error = result["error"].as_str().unwrap_or("Unknown error");
+                            println!("{} Sync failed: {}", "❌".red(), error);
+                        }
+                    } else {
+                        println!("{} Sync request sent successfully!", "✅".green());
+                    }
+                } else {
+                    println!("{} Studio sync failed: {}", "❌".red(), response.status());
+                }
+            },
+            Err(e) => {
+                println!("{} Failed to send sync request: {}", "❌".red(), e);
+                println!("💡 Make sure 'fluxo serve' is running and Studio is open");
             }
         }
         

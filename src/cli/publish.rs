@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use std::path::PathBuf;
 use colored::Colorize;
+use serde_json;
 
 use crate::{
     config::Config,
@@ -94,12 +95,25 @@ impl Publish {
     }
     
     fn check_studio_connection(&self) -> Result<bool> {
-        // In a real implementation, this would check if Studio is running
-        // and the Fluxo plugin is available
         println!("{}", "🔍 Connecting to Studio...".cyan());
         
-        // Simulate connection check
-        Ok(true)
+        let url = format!("http://localhost:{}/health", self.port + 1000); // Fluxo HTTP port
+        
+        match reqwest::blocking::get(&url) {
+            Ok(response) => {
+                if response.status().is_success() {
+                    println!("{}", "✅ Studio plugin connection verified".green());
+                    Ok(true)
+                } else {
+                    println!("{}", "❌ Studio plugin not responding".red());
+                    Ok(false)
+                }
+            },
+            Err(_) => {
+                println!("{}", "❌ Cannot reach Studio plugin".red());
+                Ok(false)
+            }
+        }
     }
     
     fn load_metadata(&self, project_path: &std::path::Path) -> Result<serde_json::Value> {
@@ -156,20 +170,42 @@ impl Publish {
     }
     
     fn send_publish_request(&self, metadata: &serde_json::Value) -> Result<()> {
-        // In a real implementation, this would send the publish request to Studio
-        // via HTTP/RPC, which would then trigger the Studio plugin to show
-        // the confirmation dialog and handle the actual publishing
-        
-        println!("{}", "📤 Sending publish request...".cyan());
+        println!("{}", "📤 Sending publish request to Studio...".cyan());
         
         let publish_data = serde_json::json!({
             "metadata": metadata,
-            "notes": self.notes,
-            "timestamp": chrono::Utc::now().timestamp()
+            "notes": self.notes
         });
         
-        // Simulate sending to Studio
-        println!("{}", "✅ Request sent successfully".green());
+        let client = reqwest::blocking::Client::new();
+        let url = format!("http://localhost:{}/publish", self.port + 1000);
+        
+        match client.post(&url)
+            .json(&publish_data)
+            .send() 
+        {
+            Ok(response) => {
+                if response.status().is_success() {
+                    if let Ok(result) = response.json::<serde_json::Value>() {
+                        if result["success"].as_bool().unwrap_or(false) {
+                            println!("{}", "✅ Publish request sent successfully!".green());
+                            println!("{}", "🎯 Studio will show the publish confirmation dialog".cyan());
+                        } else {
+                            let error = result["error"].as_str().unwrap_or("Unknown error");
+                            println!("{} Publish failed: {}", "❌".red(), error);
+                        }
+                    } else {
+                        println!("{}", "✅ Publish request sent successfully!".green());
+                    }
+                } else {
+                    println!("{} Studio publish failed: {}", "❌".red(), response.status());
+                }
+            },
+            Err(e) => {
+                println!("{} Failed to send publish request: {}", "❌".red(), e);
+                println!("💡 Make sure 'fluxo serve' is running and Studio is open");
+            }
+        }
         
         Ok(())
     }

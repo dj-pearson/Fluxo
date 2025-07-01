@@ -24,6 +24,8 @@ mod subscribe;
 mod unsubscribe;
 mod write;
 
+pub mod http;
+
 #[derive(Debug, Clone, Serialize, FromOne)]
 pub enum Message {
 	SyncChanges(SyncChanges),

@@ -198,28 +198,94 @@ end
 function Publish.executePublish(metadata, notes, dashboard)
     dashboard:addLog("🚀 Starting plugin publish process...")
     
-    -- TODO: Implement actual plugin publishing using StudioService
-    -- This would use the Plugin:PublishAsPluginAsync() method
+    -- Get plugin context
+    local pluginObject = script:FindFirstAncestorOfClass("Plugin")
     
+    if not pluginObject then
+        dashboard:addLog("❌ No plugin context found - cannot publish")
+        return
+    end
+    
+    dashboard:addLog("📤 Preparing plugin for publication...")
+    
+    -- Validate metadata
+    if not metadata.name or metadata.name == "" then
+        dashboard:addLog("❌ Plugin name is required")
+        return
+    end
+    
+    if not metadata.description or metadata.description == "" then
+        dashboard:addLog("❌ Plugin description is required")
+        return
+    end
+    
+    -- Prepare publish configuration
+    local description = metadata.description .. "\n\nVersion: " .. (metadata.version or "1.0.0")
+    
+    if notes and notes ~= "" then
+        description = description .. "\n\nRelease Notes: " .. notes
+    end
+    
+    local publishConfig = {
+        Name = metadata.name,
+        Description = description,
+        Tags = metadata.tags or {}
+    }
+    
+    dashboard:addLog("� Publishing: " .. publishConfig.Name)
+    dashboard:addLog("📝 Version: " .. (metadata.version or "1.0.0"))
+    
+    -- Attempt to publish using Plugin:PublishAsPluginAsync()
     local success, result = pcall(function()
-        -- For now, simulate the publishing process
-        dashboard:addLog("📤 Uploading plugin files...")
-        wait(1)
-        dashboard:addLog("🔍 Processing metadata...")
-        wait(1)
-        dashboard:addLog("✅ Plugin published successfully!")
-        
-        return "Plugin published successfully"
+        -- This is the official Roblox method for plugin publishing
+        return pluginObject:PublishAsPluginAsync(publishConfig)
     end)
     
     if success then
-        dashboard:addLog("🎉 Plugin '" .. metadata.name .. "' v" .. metadata.version .. " published!")
+        dashboard:addLog("✅ Plugin published successfully!")
+        dashboard:addLog("🔗 Asset ID: " .. tostring(result))
+        dashboard:addLog("🎉 '" .. metadata.name .. "' is now live on the Creator Marketplace!")
         
-        -- TODO: Send success response back to CLI
+        -- Update project status
+        dashboard:updateProject({
+            name = metadata.name,
+            lastPublish = os.date("%Y-%m-%d %H:%M:%S"),
+            lastVersion = metadata.version or "1.0.0",
+            assetId = tostring(result)
+        })
+        
+        -- Log publish summary
+        dashboard:addLog("📊 Publish Summary:")
+        dashboard:addLog("  • Name: " .. metadata.name)
+        dashboard:addLog("  • Version: " .. (metadata.version or "1.0.0"))
+        dashboard:addLog("  • Author: " .. (metadata.author or "Unknown"))
+        dashboard:addLog("  • Asset ID: " .. tostring(result))
+        
     else
         dashboard:addLog("❌ Publish failed: " .. tostring(result))
         
-        -- TODO: Send error response back to CLI
+        -- Provide helpful error messages
+        local errorStr = tostring(result):lower()
+        
+        if errorStr:find("permission") or errorStr:find("unauthorized") then
+            dashboard:addLog("💡 Tip: Make sure you have plugin publishing permissions")
+            dashboard:addLog("   You may need to verify your account or enable 2-step verification")
+            
+        elseif errorStr:find("moderation") or errorStr:find("content") then
+            dashboard:addLog("⚠️ Content may have triggered moderation filters")
+            dashboard:addLog("💡 Tip: Review your plugin name, description, and code for policy violations")
+            
+        elseif errorStr:find("rate") or errorStr:find("limit") then
+            dashboard:addLog("⏰ Rate limit reached - please wait before publishing again")
+            
+        elseif errorStr:find("duplicate") or errorStr:find("exists") then
+            dashboard:addLog("📋 Plugin with this name may already exist")
+            dashboard:addLog("💡 Tip: Try updating the existing plugin or use a different name")
+            
+        else
+            dashboard:addLog("💡 Tip: Check your internet connection and try again")
+            dashboard:addLog("   If the problem persists, contact Roblox support")
+        end
     end
 end
 

@@ -8,6 +8,7 @@ use std::{
 	fs, mem,
 	path::{Path, PathBuf},
 };
+use walkdir;
 
 use crate::{
 	config::Config,
@@ -209,6 +210,104 @@ impl Project {
 
 		Some(node)
 	}
+
+	// Fluxo-specific methods for plugin development
+	pub fn get_source_files(&self) -> Result<HashMap<String, String>> {
+		let mut files = HashMap::new();
+		
+		// Walk the project directory and collect source files
+		self.collect_files_recursive(&self.workspace_dir, &mut files)?;
+		
+		Ok(files)
+	}
+	
+	fn collect_files_recursive(&self, dir: &Path, files: &mut HashMap<String, String>) -> Result<()> {
+		for entry in walkdir::WalkDir::new(dir) {
+			let entry = entry?;
+			let path = entry.path();
+			
+			if path.is_file() {
+				if let Some(ext) = path.extension() {
+					if ext == "lua" || ext == "luau" {
+						let relative_path = path.strip_prefix(&self.workspace_dir)
+							.unwrap_or(path)
+							.to_string_lossy()
+							.to_string();
+						
+						if let Ok(content) = fs::read_to_string(path) {
+							files.insert(relative_path, content);
+						}
+					}
+				}
+			}
+		}
+		
+		Ok(())
+	}
+	
+	pub fn metadata(&self) -> serde_json::Value {
+		serde_json::json!({
+			"name": self.name,
+			"workspace_dir": self.workspace_dir.to_string_lossy(),
+			"is_place": self.is_place(),
+			"game_id": self.game_id,
+			"place_ids": self.place_ids
+		})
+	}
+	
+	pub fn validate(&self) -> serde_json::Value {
+		let mut issues = Vec::new();
+		let mut warnings = Vec::new();
+		let mut suggestions = Vec::new();
+		
+		// Basic validation
+		if self.name.is_empty() {
+			issues.push("Project name is empty".to_string());
+		}
+		
+		// Check for plugin metadata file
+		let plugin_meta_path = self.workspace_dir.join("plugin.meta.json");
+		if !plugin_meta_path.exists() {
+			warnings.push("Missing plugin.meta.json file".to_string());
+		}
+		
+		// Check for fluxo config
+		let fluxo_config_path = self.workspace_dir.join("fluxo.config.json");
+		if !fluxo_config_path.exists() {
+			warnings.push("Missing fluxo.config.json file".to_string());
+		}
+		
+		// Check source files
+		if let Ok(files) = self.get_source_files() {
+			if files.is_empty() {
+				issues.push("No source files found".to_string());
+			}
+			
+			// Check for banned APIs
+			for (file_path, content) in &files {
+				if content.contains("loadstring") {
+					issues.push(format!("Banned API 'loadstring' found in {}", file_path));
+				}
+				if content.contains("getfenv") {
+					issues.push(format!("Banned API 'getfenv' found in {}", file_path));
+				}
+			}
+		}
+		
+		// Suggestions
+		suggestions.push("Consider adding documentation".to_string());
+		suggestions.push("Use consistent naming conventions".to_string());
+		
+		serde_json::json!({
+			"success": issues.is_empty(),
+			"issues": issues,
+			"warnings": warnings,
+			"suggestions": suggestions,
+			"timestamp": chrono::Utc::now().to_rfc3339()
+		})
+	}
+
+	// ...existing methods...
 }
 
 pub fn resolve(path: PathBuf) -> Result<PathBuf> {

@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use std::path::PathBuf;
 use colored::Colorize;
+use walkdir;
 
 use crate::{
     config::Config,
