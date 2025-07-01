@@ -9,6 +9,7 @@ use std::{
 	path::{Path, PathBuf},
 };
 use walkdir;
+use chrono;
 
 use crate::{
 	config::Config,

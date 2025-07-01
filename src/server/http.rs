@@ -2,8 +2,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use warp::Filter;
 use serde_json::Value;
+use std::collections::HashMap;
 
-use crate::core::project::Project;
+use crate::project::Project;
 
 pub struct HttpServer {
     port: u16,

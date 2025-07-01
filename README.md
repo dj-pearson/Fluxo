@@ -125,3 +125,59 @@ Fluxo is actively under development. The core architecture is complete and we're
 ## 📄 License
 
 See LICENSE.md for details.
+
+## 🧪 **Testing the Integration**
+
+### Quick Integration Test
+```bash
+# Run the automated integration test
+./test-integration.sh    # Linux/Mac
+test-integration.bat     # Windows
+```
+
+### Manual Testing Steps
+1. **Build and install**:
+   ```bash
+   cargo build --release
+   cd studio-plugin && rojo build --output FluxoPlugin.rbxmx
+   ```
+
+2. **Create test project**:
+   ```bash
+   fluxo init test-plugin --template plugin
+   cd test-plugin
+   ```
+
+3. **Start development server**:
+   ```bash
+   fluxo serve
+   # Server runs on port 8080 (Argon) and 9080 (Fluxo HTTP)
+   ```
+
+4. **Install Studio plugin**:
+   - Open Roblox Studio
+   - Install FluxoPlugin.rbxmx via Plugin Manager
+   - Click "Fluxo Dashboard" in toolbar
+
+5. **Test sync workflow**:
+   ```bash
+   fluxo sync --watch
+   # Edit files in src/ and see them sync to Studio
+   ```
+
+6. **Test publish workflow**:
+   ```bash
+   fluxo publish --version 1.0.0 --notes "Test release"
+   # Confirm in Studio's publish dialog
+   ```
+
+## 🔗 **HTTP API Endpoints**
+
+The CLI server exposes these endpoints for Studio communication:
+
+- `GET /health` - Health check
+- `POST /sync` - Sync files to Studio  
+- `POST /validate` - Validate project
+- `POST /publish` - Trigger publish flow
+
+All endpoints run on `http://localhost:9080` by default.
