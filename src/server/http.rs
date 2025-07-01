@@ -3,6 +3,7 @@ use tokio::sync::Mutex;
 use warp::Filter;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::convert::Infallible;
 
 use crate::project::Project;
 
@@ -55,7 +56,11 @@ impl HttpServer {
             .or(sync)
             .or(validate)
             .or(publish)
-            .with(warp::cors().allow_any_origin());
+            .with(warp::cors()
+                .allow_any_origin()
+                .allow_headers(vec!["content-type"])
+                .allow_methods(vec!["GET", "POST", "OPTIONS"])
+            );
 
         println!("🚀 Fluxo HTTP server starting on port {}", self.port);
         
@@ -74,7 +79,7 @@ impl HttpServer {
 
 fn with_project(
     project: Arc<Mutex<Option<Project>>>,
-) -> impl Filter<Extract = (Arc<Mutex<Option<Project>>>,), Error = std::convert::Infallible> + Clone {
+) -> impl Filter<Extract = (Arc<Mutex<Option<Project>>>,), Error = Infallible> + Clone {
     warp::any().map(move || project.clone())
 }
 
@@ -91,17 +96,23 @@ async fn handle_sync(
         let response = serde_json::json!({
             "success": true,
             "files": files,
-            "projectPath": proj.path(),
+            "projectPath": proj.path().to_string_lossy(),
             "metadata": proj.metadata()
         });
         
-        Ok(warp::reply::json(&response))
+        Ok(warp::reply::with_status(
+            warp::reply::json(&response),
+            warp::http::StatusCode::OK
+        ))
     } else {
         let error = serde_json::json!({
             "success": false,
             "error": "No project loaded"
         });
-        Ok(warp::reply::json(&error))
+        Ok(warp::reply::with_status(
+            warp::reply::json(&error),
+            warp::http::StatusCode::BAD_REQUEST
+        ))
     }
 }
 
@@ -113,13 +124,19 @@ async fn handle_validate(
     
     if let Some(proj) = project_guard.as_ref() {
         let validation_result = proj.validate();
-        Ok(warp::reply::json(&validation_result))
+        Ok(warp::reply::with_status(
+            warp::reply::json(&validation_result),
+            warp::http::StatusCode::OK
+        ))
     } else {
         let error = serde_json::json!({
             "success": false,
             "error": "No project loaded"
         });
-        Ok(warp::reply::json(&error))
+        Ok(warp::reply::with_status(
+            warp::reply::json(&error),
+            warp::http::StatusCode::BAD_REQUEST
+        ))
     }
 }
 
@@ -134,16 +151,22 @@ async fn handle_publish(
         let publish_data = serde_json::json!({
             "success": true,
             "metadata": body,
-            "projectPath": proj.path(),
+            "projectPath": proj.path().to_string_lossy(),
             "files": proj.get_source_files().unwrap_or_default()
         });
         
-        Ok(warp::reply::json(&publish_data))
+        Ok(warp::reply::with_status(
+            warp::reply::json(&publish_data),
+            warp::http::StatusCode::OK
+        ))
     } else {
         let error = serde_json::json!({
             "success": false,
             "error": "No project loaded"
         });
-        Ok(warp::reply::json(&error))
+        Ok(warp::reply::with_status(
+            warp::reply::json(&error),
+            warp::http::StatusCode::BAD_REQUEST
+        ))
     }
 }

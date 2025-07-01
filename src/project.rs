@@ -308,7 +308,9 @@ impl Project {
 		})
 	}
 
-	// ...existing methods...
+	pub fn path(&self) -> &Path {
+		&self.path
+	}
 }
 
 pub fn resolve(path: PathBuf) -> Result<PathBuf> {

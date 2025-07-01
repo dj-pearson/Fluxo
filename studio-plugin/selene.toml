@@ -1,5 +1,13 @@
 std = "roblox"
 
+[config]
+# Allow Roblox-specific globals
+allow_global_usage = true
+
 [lints]
+# Allow shadowing of variables
 shadowing = "allow"
+# Allow unused variables (common in template code)
 unused_variable = "allow"
+# Don't error on undefined variables since Roblox provides them
+undefined_variable = "deny"
