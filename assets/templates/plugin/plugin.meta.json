@@ -1,0 +1,8 @@
+{
+  "name": "$name",
+  "description": "A plugin for Roblox Studio",
+  "version": "1.0.0",
+  "tags": [],
+  "author": "$author",
+  "authorContact": ""
+}

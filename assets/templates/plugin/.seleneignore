@@ -1,0 +1,6 @@
+# Fluxo Plugin Template Selene Ignore
+# These files contain template variables and Roblox globals
+# They will be properly resolved when the template is instantiated
+
+src/.src.server.luau
+src/ToolbarUI.lua

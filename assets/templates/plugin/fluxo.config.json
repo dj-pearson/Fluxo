@@ -1,0 +1,19 @@
+{
+  "team": {
+    "members": [
+      {
+        "name": "$author",
+        "role": "developer",
+        "permissions": ["publish", "edit-metadata"]
+      }
+    ]
+  },
+  "validation": {
+    "bannedApis": ["loadstring", "getfenv", "setfenv", "debug.getupvalue"],
+    "customRules": []
+  },
+  "publishing": {
+    "targetPlace": null,
+    "confirmationRequired": true
+  }
+}

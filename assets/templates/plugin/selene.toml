@@ -2,3 +2,11 @@ std = "roblox"
 
 [lints]
 shadowing = "allow"
+unused_variable = "allow"
+unscoped_variables = "allow"
+undefined_variable = "allow"
+incorrect_standard_library_use = "allow"
+
+# Disable all linting for template files since they contain placeholders
+[rules]
+"*" = "allow"

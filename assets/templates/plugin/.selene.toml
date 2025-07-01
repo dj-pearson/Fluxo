@@ -1,0 +1,24 @@
+# Selene configuration for Fluxo plugin template
+# This is a template directory with placeholder variables
+# Linting errors are expected and will be resolved when the template is instantiated
+
+std = "roblox"
+
+[lints]
+# Allow all linting issues for template files
+shadowing = "allow"
+unused_variable = "allow"
+unscoped_variables = "allow"  
+undefined_variable = "allow"
+incorrect_standard_library_use = "allow"
+unused_function = "allow"
+empty_if = "allow"
+if_same_then_else = "allow"
+mismatched_arg_count = "allow"
+unused_arg = "allow"
+global_usage = "allow"
+suspicious_reverse_loop = "allow"
+
+# Completely disable all rules for this template directory
+[config]
+template_mode = true
