@@ -1,0 +1,10 @@
+{
+  "name": "Fluxo Studio Companion",
+  "tree": {
+    "$className": "ServerStorage",
+    "FluxoStudioPlugin": {
+      "$path": "src",
+      "$className": "Folder"
+    }
+  }
+}
