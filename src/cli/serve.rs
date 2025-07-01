@@ -174,25 +174,7 @@ impl Serve {
 		);
 
 		// Start Fluxo HTTP server on a different port for Studio communication
-		let mut fluxo_port = port + 1000; // e.g., if Argon is on 8080, Fluxo is on 9080
-		
-		// Check if Fluxo port is free, scan for alternative if needed
-		if !server::is_port_free(&host, fluxo_port) {
-			if config.scan_ports {
-				fluxo_port = server::get_free_port(&host, fluxo_port);
-				argon_warn!(
-					"Fluxo port {} is already in use, using {} instead!",
-					(port + 1000).to_string().bold(),
-					fluxo_port.to_string().bold()
-				);
-			} else {
-				argon_warn!(
-					"Fluxo port {} is already in use! Fluxo HTTP server may fail to start",
-					fluxo_port.to_string().bold()
-				);
-			}
-		}
-		
+		let fluxo_port = port + 1000; // e.g., if Argon is on 8080, Fluxo is on 9080
 		let project_for_server = Project::load(&project_path)?;
 		
 		argon_info!(
@@ -202,7 +184,7 @@ impl Serve {
 		
 		// Start Fluxo HTTP server in a separate thread
 		let fluxo_host = host.clone();
-		let fluxo_handle = thread::spawn(move || {
+		thread::spawn(move || {
 			let rt = tokio::runtime::Runtime::new().unwrap();
 			rt.block_on(async {
 				let http_server = HttpServer::new(fluxo_port);
@@ -213,19 +195,10 @@ impl Serve {
 			});
 		});
 
-		// Set up graceful shutdown
-		let _cleanup = ctrlc::set_handler(move || {
-			argon_info!("Shutting down Fluxo servers...");
-			// The thread will be cleaned up when the process exits
-		});
-
 		// Start the original Argon server
-		let result = server.start();
-		
-		// If we reach here, the Argon server has stopped
-		argon_info!("Argon server stopped");
-		
-		result
+		server.start()?;
+
+		Ok(())
 	}
 
 	fn spawn(self) -> Result<()> {
