@@ -95,7 +95,7 @@ warp = "0.3"
 keybd_event = "0.1.2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-winsafe = { version = "0.0.23", features = ["user"] }
+winsafe = { version = "0.0.25", features = ["user"] }
 
 [build-dependencies]
 anyhow = "1.0.98"
